@@ -5,6 +5,7 @@
 Representations of fixed (non-animated) values.
 */
 
+use serde::{Deserialize, Serialize};
 use vello::kurbo::{self, Affine, Point, Vec2};
 use vello::peniko;
 
@@ -24,7 +25,7 @@ pub type Brush = peniko::Brush;
 pub type Stroke = kurbo::Stroke;
 
 /// Fixed repeater effect.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repeater {
     /// Number of times to repeat.
     pub copies: usize,

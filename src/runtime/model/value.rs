@@ -1,11 +1,12 @@
 // Copyright 2024 the Velato Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use serde::{Serialize, Deserialize};
 use vello::kurbo::{self};
 use vello::peniko;
 
 /// Fixed or animated value.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Value<T: Tween> {
     /// Fixed value.
     Fixed(T),
@@ -72,14 +73,14 @@ impl Easing {
     };
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct EasingHandle {
     pub x: f64,
     pub y: f64,
 }
 
 /// Time for a particular keyframe, represented as a frame number.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Time {
     /// Frame number.
     pub frame: f64,
@@ -131,7 +132,7 @@ impl Time {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Animated<T: Tween> {
     pub times: Vec<Time>,
     pub values: Vec<T>,

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::ops::Range;
-use vello::kurbo::{self, Affine, PathEl, Point, Shape as _, Size, Vec2};
-use vello::peniko::{self, BlendMode, Color};
+use serde::{Deserialize, Serialize};
+use kurbo::{self, Affine, PathEl, Point, Shape as _, Size, Vec2};
+use peniko::{self, BlendMode, Color};
 
 mod spline;
 mod value;
@@ -18,7 +19,7 @@ pub(crate) use spline::SplineToPath;
 macro_rules! simple_value {
     ($name:ident) => {
         #[allow(clippy::large_enum_variant)]
-        #[derive(Clone, Debug)]
+        #[derive(Clone, Debug, Serialize, Deserialize)]
         pub enum $name {
             Fixed(fixed::$name),
             Animated(animated::$name),
@@ -43,7 +44,7 @@ simple_value!(Stroke);
 simple_value!(Repeater);
 simple_value!(ColorStops);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Brush {
     Fixed(fixed::Brush),
     Animated(animated::Brush),
@@ -74,7 +75,7 @@ impl Default for Transform {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Geometry {
     Fixed(Vec<PathEl>),
     Rect(animated::Rect),
@@ -101,7 +102,7 @@ impl Geometry {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Draw {
     /// Parameters for a stroked draw operation.
     pub stroke: Option<Stroke>,
@@ -112,7 +113,7 @@ pub struct Draw {
 }
 
 /// Elements of a shape layer.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Shape {
     /// Group of shapes with an optional transform.
     Group(Vec<Shape>, Option<GroupTransform>),
@@ -125,14 +126,14 @@ pub enum Shape {
 }
 
 /// Transform and opacity for a shape group.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GroupTransform {
     pub transform: Transform,
     pub opacity: Value<f64>,
 }
 
 /// Layer in an animation.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Layer {
     /// Name of the layer.
     pub name: String,
@@ -177,7 +178,7 @@ pub enum Matte {
 }
 
 /// Mask for a layer.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Mask {
     /// Blend mode for the mask.
     pub mode: peniko::BlendMode,
@@ -188,7 +189,7 @@ pub struct Mask {
 }
 
 /// Content of a layer.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub enum Content {
     /// Empty layer.
     #[default]

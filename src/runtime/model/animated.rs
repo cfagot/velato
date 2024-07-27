@@ -9,14 +9,14 @@ use super::*;
 
 use kurbo::PathEl;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Position {
     Value(Value<Point>),
     SplitValues((Value<f64>, Value<f64>)),
 }
 
 /// Animated affine transformation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Transform {
     /// Anchor point.
     pub anchor: Value<Point>,
@@ -89,7 +89,7 @@ impl Transform {
 }
 
 /// Animated ellipse.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ellipse {
     /// True if the ellipse should be drawn in CCW order.
     pub is_ccw: bool,
@@ -113,7 +113,7 @@ impl Ellipse {
 }
 
 /// Animated rounded rectangle.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Rect {
     /// True if the rect should be drawn in CCW order.
     pub is_ccw: bool,
@@ -151,7 +151,7 @@ impl Rect {
 }
 
 /// Animated star or polygon.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Star {
     pub is_polygon: bool,
     pub direction: f64,
@@ -178,7 +178,7 @@ pub struct Star {
 //}
 
 /// Animated cubic spline.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Spline {
     /// True if the spline is closed.
     pub is_closed: bool,
@@ -206,7 +206,7 @@ impl Spline {
 }
 
 /// Animated repeater effect.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repeater {
     /// Number of times elements should be repeated.
     pub copies: Value<f64>,
@@ -272,7 +272,7 @@ impl Repeater {
 }
 
 /// Animated stroke properties.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Stroke {
     /// Width of the stroke.
     pub width: Value<f64>,
@@ -313,7 +313,7 @@ impl Stroke {
 }
 
 /// Animated linear or radial gradient.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Gradient {
     /// True if the gradient is radial.
     pub is_radial: bool,
@@ -349,7 +349,7 @@ impl Gradient {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ColorStops {
     pub frames: Vec<Time>,
     pub values: Vec<Vec<f64>>,
@@ -384,7 +384,7 @@ impl ColorStops {
 }
 
 /// Animated brush.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Brush {
     /// Solid color.
     Solid(Value<Color>),

@@ -29,12 +29,13 @@ clippy.semicolon_if_nothing_returned = "warn"
 [workspace.dependencies]
 # NOTE: Make sure to keep this in sync with the version badge in README.md
 vello = { version = "0.2.0", default-features = false }
-
-[lints]
-workspace = true
+peniko = { version = "0.1.1", features = ["serde"] }
+kurbo = { version = "0.11.0", features = ["serde"] }
 
 [dependencies]
 vello = { workspace = true }
+peniko = { workspace = true }
+kurbo = { workspace = true }
 keyframe = "1.1.1"
 once_cell = "1.19.0"
 thiserror = "1.0.61"
