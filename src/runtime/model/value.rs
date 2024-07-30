@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use serde::{Serialize, Deserialize};
-use vello::kurbo::{self};
 use vello::peniko;
+
+use crate::{PointF32, SizeF32};
 
 /// Fixed or animated value.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -75,15 +76,15 @@ impl Easing {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct EasingHandle {
-    pub x: f64,
-    pub y: f64,
+    pub x: f32,
+    pub y: f32,
 }
 
 /// Time for a particular keyframe, represented as a frame number.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct Time {
     /// Frame number.
-    pub frame: f64,
+    pub frame: f32,
     /// Easing tangent going into the next keyframe
     pub in_tangent: Option<EasingHandle>,
     /// Easing tangent leaving the current keyframe
@@ -102,6 +103,7 @@ impl Time {
         if times.is_empty() {
             return None;
         }
+        let frame = frame as f32;
         use core::cmp::Ordering::*;
         let ix = match times.binary_search_by(|x| {
             if x.frame < frame {
@@ -128,7 +130,7 @@ impl Time {
         };
         let hold = t0.hold;
         let t = (frame - t0.frame) / (t1.frame - t0.frame);
-        Some(([ix0, ix1], t.clamp(0.0, 1.0), easing, hold))
+        Some(([ix0, ix1], t.clamp(0.0, 1.0) as f64, easing, hold))
     }
 }
 
@@ -160,25 +162,75 @@ pub trait Tween: Clone + Default {
     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self;
 }
 
-impl Tween for f64 {
+// impl Tween for f64 {
+//     fn tween(&self, other: &Self, t: f64, _easing: &Easing) -> Self {
+//         // TODO: We are enforcing linear interpolation for now, but a decent amount of work is done for easings.
+//         keyframe::ease(keyframe::functions::Linear, *self, *other, t)
+
+//         // FIXME: Hopefully we can finish this up one day!
+//         //keyframe::ease(
+//         //    keyframe::functions::BezierCurve::from(
+//         //        keyframe::mint::Vector2::from_slice(&[easing.o.x, easing.o.y]),
+//         //        keyframe::mint::Vector2::from_slice(&[easing.i.x, easing.i.y]),
+//         //    ),
+//         //    *self,
+//         //    *other,
+//         //    t,
+//         //)
+//     }
+// }
+
+// impl Tween for f64 {
+//     fn tween(&self, other: &Self, t: f64, _easing: &Easing) -> Self {
+//         // TODO: We are enforcing linear interpolation for now, but a decent amount of work is done for easings.
+//         keyframe::ease(keyframe::functions::Linear, *self, *other, t)
+//     }
+// }
+
+impl Tween for f32 {
     fn tween(&self, other: &Self, t: f64, _easing: &Easing) -> Self {
-        // TODO: We are enforcing linear interpolation for now, but a decent amount of work is done for easings.
         keyframe::ease(keyframe::functions::Linear, *self, *other, t)
-
-        // FIXME: Hopefully we can finish this up one day!
-        //keyframe::ease(
-        //    keyframe::functions::BezierCurve::from(
-        //        keyframe::mint::Vector2::from_slice(&[easing.o.x, easing.o.y]),
-        //        keyframe::mint::Vector2::from_slice(&[easing.i.x, easing.i.y]),
-        //    ),
-        //    *self,
-        //    *other,
-        //    t,
-        //)
     }
 }
 
-impl Tween for kurbo::Point {
+// impl Tween for kurbo::Point {
+//     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
+//         Self::new(
+//             self.x.tween(&other.x, t, easing),
+//             self.y.tween(&other.y, t, easing),
+//         )
+//     }
+// }
+
+// impl Tween for kurbo::Vec2 {
+//     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
+//         Self::new(
+//             self.x.tween(&other.x, t, easing),
+//             self.y.tween(&other.y, t, easing),
+//         )
+//     }
+// }
+
+// impl Tween for kurbo::Size {
+//     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
+//         Self::new(
+//             self.width.tween(&other.width, t, easing),
+//             self.height.tween(&other.height, t, easing),
+//         )
+//     }
+// }
+
+impl Tween for peniko::Color {
+    fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
+        let r = (self.r as f32 / 255.0).tween(&(other.r as f32 / 255.0), t, easing) as f64;
+        let g = (self.g as f32 / 255.0).tween(&(other.g as f32 / 255.0), t, easing) as f64;
+        let b = (self.b as f32 / 255.0).tween(&(other.b as f32 / 255.0), t, easing) as f64;
+        let a = (self.a as f32/ 255.0).tween(&(other.a as f32 / 255.0), t, easing) as f64;
+        peniko::Color::rgba(r, g, b, a)
+    }
+}
+
+impl Tween for PointF32 {
     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
         Self::new(
             self.x.tween(&other.x, t, easing),
@@ -187,30 +239,12 @@ impl Tween for kurbo::Point {
     }
 }
 
-impl Tween for kurbo::Vec2 {
-    fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
-        Self::new(
-            self.x.tween(&other.x, t, easing),
-            self.y.tween(&other.y, t, easing),
-        )
-    }
-}
-
-impl Tween for kurbo::Size {
+impl Tween for SizeF32 {
     fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
         Self::new(
             self.width.tween(&other.width, t, easing),
             self.height.tween(&other.height, t, easing),
         )
     }
-}
-
-impl Tween for peniko::Color {
-    fn tween(&self, other: &Self, t: f64, easing: &Easing) -> Self {
-        let r = (self.r as f64 / 255.0).tween(&(other.r as f64 / 255.0), t, easing);
-        let g = (self.g as f64 / 255.0).tween(&(other.g as f64 / 255.0), t, easing);
-        let b = (self.b as f64 / 255.0).tween(&(other.b as f64 / 255.0), t, easing);
-        let a = (self.a as f64 / 255.0).tween(&(other.a as f64 / 255.0), t, easing);
-        peniko::Color::rgba(r, g, b, a)
-    }
+    
 }

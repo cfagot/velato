@@ -101,7 +101,7 @@ impl Renderer {
             }
             scene.push_layer(mode, 1.0, parent_transform, &full_rect);
         }
-        let alpha = alpha * layer.opacity.evaluate(frame) / 100.0;
+        let alpha = alpha * layer.opacity.evaluate(frame) as f64/ 100.0;
         for mask in &layer.masks {
             let alpha = mask.opacity.evaluate(frame) / 100.0;
             mask.geometry.evaluate(frame, &mut self.mask_elements);
@@ -176,7 +176,7 @@ impl Renderer {
                     self.render_shapes(
                         shapes,
                         transform * group_transform,
-                        alpha * group_alpha,
+                        alpha * group_alpha as f64,
                         frame,
                     );
                 }
@@ -243,7 +243,7 @@ impl DrawData {
                 .as_ref()
                 .map(|stroke| stroke.evaluate(frame).into_owned()),
             brush: draw.brush.evaluate(1.0, frame).into_owned(),
-            alpha: alpha * draw.opacity.evaluate(frame) / 100.0,
+            alpha: alpha * draw.opacity.evaluate(frame) as f64/ 100.0,
             geometry,
         }
     }

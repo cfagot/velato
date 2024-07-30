@@ -16,9 +16,9 @@ use crate::schema::animated_properties::multi_dimensional::MultiDimensional;
 use crate::schema::animated_properties::split_vector::SplitVector;
 use crate::schema::constants::gradient_type::GradientType;
 use crate::schema::helpers::int_boolean::BoolInt;
-use crate::{schema, Composition};
+use crate::{schema, Composition, PathEl32, PointF32, SizeF32, VecF32};
 use std::collections::HashMap;
-use vello::kurbo::{Cap, Join, Point, Size, Vec2};
+use vello::kurbo::{Cap, Join};
 use vello::peniko::{BlendMode, Color, Mix};
 
 pub fn conv_animation(source: schema::Animation) -> Composition {
@@ -149,7 +149,7 @@ pub fn conv_layer(source: &schema::layers::AnyLayer) -> Option<(Layer, usize, Op
 
 pub fn conv_transform(
     value: &schema::helpers::transform::Transform,
-) -> (runtime::model::Transform, Value<f64>) {
+) -> (runtime::model::Transform, Value<f32>) {
     let rotation_in = match &value.rotation {
         Some(any_trans) => match any_trans {
             schema::helpers::transform::AnyTransformR::Rotation(float_value) => float_value,
@@ -249,17 +249,17 @@ pub fn conv_keyframes<'a, T: Tween>(
                 handles.extend(
                     xarr.iter()
                         .zip(yarr)
-                        .map(|(x, y)| EasingHandle { x: *x, y: *y }),
+                        .map(|(x, y)| EasingHandle { x: *x as f32, y: *y as f32 }),
                 );
             }
             (KeyframeComponent::ArrayOfValues(xarr), KeyframeComponent::SingleValue(y)) => {
-                handles.extend(xarr.iter().map(|x| EasingHandle { x: *x, y: *y }));
+                handles.extend(xarr.iter().map(|x| EasingHandle { x: *x as f32, y: *y as f32 }));
             }
             (KeyframeComponent::SingleValue(x), KeyframeComponent::ArrayOfValues(yarr)) => {
-                handles.extend(yarr.iter().map(|y| EasingHandle { x: *x, y: *y }));
+                handles.extend(yarr.iter().map(|y| EasingHandle { x: *x as f32, y: *y as f32 }));
             }
             (KeyframeComponent::SingleValue(x), KeyframeComponent::SingleValue(y)) => {
-                handles.push(EasingHandle { x: *x, y: *y });
+                handles.push(EasingHandle { x: *x as f32, y: *y as f32 });
             }
         }
         handles
@@ -277,7 +277,7 @@ pub fn conv_keyframes<'a, T: Tween>(
         let tangents: Vec<_> = in_tangents.into_iter().zip(out_tangents).collect();
         if tangents.is_empty() {
             frames.push(Time {
-                frame: keyframe.base.time,
+                frame: keyframe.base.time as f32,
                 in_tangent: None,
                 out_tangent: None,
                 hold,
@@ -286,7 +286,7 @@ pub fn conv_keyframes<'a, T: Tween>(
         } else {
             for (in_tangent, out_tangent) in tangents {
                 frames.push(Time {
-                    frame: keyframe.base.time,
+                    frame: keyframe.base.time as f32,
                     in_tangent: Some(in_tangent),
                     out_tangent: Some(out_tangent),
                     hold,
@@ -320,7 +320,7 @@ fn conv_keyframe_handle(handle: &KeyframeBezierHandle) -> EasingHandle {
         }
         KeyframeComponent::SingleValue(v) => *v,
     };
-    EasingHandle { x, y }
+    EasingHandle { x: x as f32, y: y as f32 }
 }
 
 fn conv_gradient_colors(
@@ -336,9 +336,9 @@ fn conv_gradient_colors(
             for values in raw {
                 stops.push(
                     (
-                        values[0] as f32,
+                        values[0],
                         runtime::model::fixed::Color::rgba(
-                            values[1], values[2], values[3], values[4],
+                            values[1] as f64, values[2] as f64, values[3] as f64, values[4] as f64,
                         ),
                     )
                         .into(),
@@ -348,7 +348,7 @@ fn conv_gradient_colors(
         }),
         AnimatedValue(animated) => {
             let mut frames = vec![];
-            let mut values: Vec<Vec<f64>> = vec![];
+            let mut values: Vec<Vec<f32>> = vec![];
             for value in animated {
                 let hold = value
                     .base
@@ -357,7 +357,7 @@ fn conv_gradient_colors(
                     .map(|b| b.eq(&BoolInt::True))
                     .unwrap_or(false);
                 frames.push(Time {
-                    frame: value.base.time,
+                    frame: value.base.time as f32,
                     in_tangent: value.base.in_tangent.as_ref().map(conv_keyframe_handle),
                     out_tangent: value.base.out_tangent.as_ref().map(conv_keyframe_handle),
                     hold,
@@ -573,6 +573,7 @@ pub fn conv_shape_geometry(
             let (points, is_closed) = conv_spline(value);
             let mut path = vec![];
             points.as_slice().to_path(is_closed, &mut path);
+            let path = path.into_iter().map(|el| PathEl32::from_f64(&el)).collect();
             Some(runtime::model::Geometry::Fixed(path))
         }
         Animated(animated) => {
@@ -586,7 +587,7 @@ pub fn conv_shape_geometry(
                     .map(|b| b.eq(&BoolInt::True))
                     .unwrap_or(false);
                 frames.push(Time {
-                    frame: value.base.time,
+                    frame: value.base.time as f32,
                     in_tangent: value.base.in_tangent.as_ref().map(conv_keyframe_handle),
                     out_tangent: value.base.out_tangent.as_ref().map(conv_keyframe_handle),
                     hold,
@@ -604,7 +605,7 @@ pub fn conv_shape_geometry(
     }
 }
 
-pub fn conv_spline(value: &schema::helpers::bezier::Bezier) -> (Vec<Point>, bool) {
+pub fn conv_spline(value: &schema::helpers::bezier::Bezier) -> (Vec<PointF32>, bool) {
     use core::iter::repeat;
     let mut points = Vec::with_capacity(value.vertices.len() * 3);
     let is_closed = value.closed.unwrap_or(false);
@@ -615,9 +616,9 @@ pub fn conv_spline(value: &schema::helpers::bezier::Bezier) -> (Vec<Point>, bool
         .zip(value.in_tangents.iter().chain(repeat(&[0.0, 0.0])))
         .zip(value.out_tangents.iter().chain(repeat(&[0.0, 0.0])))
     {
-        points.push((v[0], v[1]).into());
-        points.push((i[0], i[1]).into());
-        points.push((o[0], o[1]).into());
+        points.push(PointF32::new(v[0] as f32, v[1] as f32));
+        points.push(PointF32::new(i[0] as f32, i[1] as f32));
+        points.push(PointF32::new(o[0] as f32, o[1] as f32));
     }
     (points, is_closed)
 }
@@ -649,10 +650,10 @@ pub fn conv_blend_mode(
     })
 }
 
-pub fn conv_scalar(float_value: &schema::animated_properties::value::FloatValue) -> Value<f64> {
+pub fn conv_scalar(float_value: &schema::animated_properties::value::FloatValue) -> Value<f32> {
     use crate::schema::animated_properties::animated_property::AnimatedPropertyK::*;
     match &float_value.animated_property.value {
-        Static(number) => Value::Fixed(*number),
+        Static(number) => Value::Fixed(*number as f32),
         AnimatedValue(keyframes) => {
             let mut frames = vec![];
             let mut values = vec![];
@@ -666,12 +667,12 @@ pub fn conv_scalar(float_value: &schema::animated_properties::value::FloatValue)
                     .map(|b| b.eq(&BoolInt::True))
                     .unwrap_or(false);
                 frames.push(crate::runtime::model::Time {
-                    frame: start_time,
+                    frame: start_time as f32,
                     in_tangent: keyframe.base.in_tangent.as_ref().map(conv_keyframe_handle),
                     out_tangent: keyframe.base.out_tangent.as_ref().map(conv_keyframe_handle),
                     hold,
                 });
-                values.push(data);
+                values.push(data as f32);
                 // todo: end_value deprecated but should we still push it if it
                 // exists?
             }
@@ -724,11 +725,11 @@ pub fn conv_pos<T: Tween>(
 }
 
 #[allow(clippy::get_first)]
-pub fn conv_pos_point(value: &schema::animated_properties::position::Position) -> Value<Point> {
+pub fn conv_pos_point(value: &schema::animated_properties::position::Position) -> Value<PointF32> {
     conv_pos(value, |x| {
-        Point::new(
-            x.get(0).copied().unwrap_or(0.0),
-            x.get(1).copied().unwrap_or(0.0),
+        PointF32::new(
+            x.get(0).copied().unwrap_or(0.0) as f32,
+            x.get(1).copied().unwrap_or(0.0) as f32,
         )
     })
 }
@@ -736,11 +737,11 @@ pub fn conv_pos_point(value: &schema::animated_properties::position::Position) -
 #[allow(clippy::get_first)]
 pub fn conv_multi_point(
     value: &schema::animated_properties::multi_dimensional::MultiDimensional,
-) -> Value<Point> {
+) -> Value<PointF32> {
     conv_multi(value, |x| {
-        Point::new(
-            x.get(0).copied().unwrap_or(0.0),
-            x.get(1).copied().unwrap_or(0.0),
+        PointF32::new(
+            x.get(0).copied().unwrap_or(0.0) as f32,
+            x.get(1).copied().unwrap_or(0.0) as f32,
         )
     })
 }
@@ -757,47 +758,47 @@ pub fn conv_color(value: &schema::animated_properties::color_value::ColorValue) 
 }
 
 #[allow(clippy::get_first)]
-pub fn conv_vec2(value: &MultiDimensional) -> Value<Vec2> {
+pub fn conv_vec2(value: &MultiDimensional) -> Value<VecF32> {
     conv_multi(value, |x| {
-        Vec2::new(
-            x.get(0).copied().unwrap_or(0.0),
-            x.get(1).copied().unwrap_or(0.0),
+        VecF32::new(
+            x.get(0).copied().unwrap_or(0.0) as f32,
+            x.get(1).copied().unwrap_or(0.0) as f32,
         )
     })
 }
 
 #[allow(clippy::get_first)]
-pub fn conv_size(value: &MultiDimensional) -> Value<Size> {
+pub fn conv_size(value: &MultiDimensional) -> Value<SizeF32> {
     conv_multi(value, |x| {
-        Size::new(
-            x.get(0).copied().unwrap_or(0.0),
-            x.get(1).copied().unwrap_or(0.0),
+        SizeF32::new(
+            x.get(0).copied().unwrap_or(0.0) as f32,
+            x.get(1).copied().unwrap_or(0.0) as f32,
         )
     })
 }
 
-pub fn conv_stops(value: &[f64], count: usize) -> Vec<[f64; 5]> {
-    let mut stops: Vec<[f64; 5]> = Vec::new();
-    let mut alpha_stops: Vec<(f64, f64)> = Vec::new();
+pub fn conv_stops(value: &[f64], count: usize) -> Vec<[f32; 5]> {
+    let mut stops: Vec<[f32; 5]> = Vec::new();
+    let mut alpha_stops: Vec<(f32, f32)> = Vec::new();
     for chunk in value.chunks_exact(4) {
-        stops.push([chunk[0], chunk[1], chunk[2], chunk[3], 1.0]);
+        stops.push([chunk[0] as f32, chunk[1] as f32, chunk[2] as f32, chunk[3] as f32, 1.0]);
         if stops.len() >= count {
             // there is alpha data at the end of the list, which is a sequence
             // of (offset, alpha) pairs
             for chunk in value.chunks_exact(2).skip(count * 2) {
                 let offset = chunk[0];
                 let alpha = chunk[1];
-                alpha_stops.push((offset, alpha));
+                alpha_stops.push((offset as f32, alpha as f32));
             }
 
             for stop in stops.iter_mut() {
-                let mut last: Option<(f64, f64)> = None;
+                let mut last: Option<(f32, f32)> = None;
                 for &(b, alpha_b) in alpha_stops.iter() {
                     if let Some((a, alpha_a)) = last.take() {
-                        let x = stop[0];
+                        let x = stop[0] as f32;
                         let t = normalize_to_range(a, b, x);
 
-                        let alpha_interp = alpha_a.tween(&alpha_b, t, &Easing::LERP);
+                        let alpha_interp = alpha_a.tween(&alpha_b, t as f64, &Easing::LERP);
                         let alpha_interp = if (x >= a && x <= b) && (t <= 0.25) && (x <= 0.1) {
                             alpha_a
                         } else {
@@ -824,7 +825,7 @@ pub fn conv_stops(value: &[f64], count: usize) -> Vec<[f64; 5]> {
     stops
 }
 
-pub fn normalize_to_range(a: f64, b: f64, x: f64) -> f64 {
+pub fn normalize_to_range(a: f32, b: f32, x: f32) -> f32 {
     if a == b {
         // Avoid division by zero if a and b are the same
         return 0.0;

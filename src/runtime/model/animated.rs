@@ -5,31 +5,33 @@
 Representations of animated values.
 */
 
+use crate::{PointF32, SizeF32, VecF32};
+
 use super::*;
 
 use kurbo::PathEl;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Position {
-    Value(Value<Point>),
-    SplitValues((Value<f64>, Value<f64>)),
+    Value(Value<PointF32>),
+    SplitValues((Value<f32>, Value<f32>)),
 }
 
 /// Animated affine transformation.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Transform {
     /// Anchor point.
-    pub anchor: Value<Point>,
+    pub anchor: Value<PointF32>,
     /// Translation.
     pub position: Position,
     /// Rotation angle.
-    pub rotation: Value<f64>,
+    pub rotation: Value<f32>,
     /// Scale factor.
-    pub scale: Value<Vec2>,
+    pub scale: Value<VecF32>,
     /// Skew factor.
-    pub skew: Value<f64>,
+    pub skew: Value<f32>,
     /// Skew angle.
-    pub skew_angle: Value<f64>,
+    pub skew_angle: Value<f32>,
 }
 
 impl Transform {
@@ -53,10 +55,10 @@ impl Transform {
         let anchor = self.anchor.evaluate(frame);
         let position = match &self.position {
             Position::Value(value) => value.evaluate(frame),
-            Position::SplitValues((x_value, y_value)) => kurbo::Point {
-                x: x_value.evaluate(frame),
-                y: y_value.evaluate(frame),
-            },
+            Position::SplitValues((x_value, y_value)) => PointF32::new(
+                x_value.evaluate(frame),
+                y_value.evaluate(frame),
+            ),
         };
         let rotation = self.rotation.evaluate(frame);
         let scale = self.scale.evaluate(frame);
@@ -64,18 +66,18 @@ impl Transform {
         let skew_angle = self.skew_angle.evaluate(frame);
         let skew_matrix = if skew != 0.0 {
             const SKEW_LIMIT: f64 = 85.0;
-            let skew = -skew.clamp(-SKEW_LIMIT, SKEW_LIMIT);
+            let skew = -skew.clamp(-SKEW_LIMIT as f32, SKEW_LIMIT as f32);
             let skew = skew.to_radians();
             let angle = skew_angle.to_radians();
-            Affine::rotate(-angle) * Affine::skew(skew.tan(), 0.0) * Affine::rotate(angle)
+            Affine::rotate(-angle as f64) * Affine::skew(skew.tan() as f64, 0.0) * Affine::rotate(angle as f64)
         } else {
             Affine::IDENTITY
         };
-        Affine::translate((position.x, position.y))
-            * Affine::rotate(rotation.to_radians())
+        Affine::translate(kurbo::Vec2::new(position.x as f64, position.y as f64))
+            * Affine::rotate(rotation.to_radians() as f64)
             * skew_matrix
-            * Affine::scale_non_uniform(scale.x / 100.0, scale.y / 100.0)
-            * Affine::translate((-anchor.x, -anchor.y))
+            * Affine::scale_non_uniform(scale.x as f64 / 100.0, scale.y as f64/ 100.0)
+            * Affine::translate((-anchor.x as f64, -anchor.y as f64))
     }
 
     /// Converts the animated value to its model representation.
@@ -94,9 +96,9 @@ pub struct Ellipse {
     /// True if the ellipse should be drawn in CCW order.
     pub is_ccw: bool,
     /// Position of the ellipse.
-    pub position: Value<Point>,
+    pub position: Value<PointF32>,
     /// Size of the ellipse.
-    pub size: Value<Size>,
+    pub size: Value<SizeF32>,
 }
 
 impl Ellipse {
@@ -105,8 +107,8 @@ impl Ellipse {
     }
 
     pub fn evaluate(&self, frame: f64) -> kurbo::Ellipse {
-        let position = self.position.evaluate(frame);
-        let size = self.size.evaluate(frame);
+        let position = self.position.evaluate(frame).to_point();
+        let size = self.size.evaluate(frame).to_size();
         let radii = (size.width * 0.5, size.height * 0.5);
         kurbo::Ellipse::new(position, radii, 0.0)
     }
@@ -118,11 +120,11 @@ pub struct Rect {
     /// True if the rect should be drawn in CCW order.
     pub is_ccw: bool,
     /// Position of the rectangle.
-    pub position: Value<Point>,
+    pub position: Value<PointF32>,
     /// Size of the rectangle.
-    pub size: Value<Size>,
+    pub size: Value<SizeF32>,
     /// Radius of the rectangle corners.
-    pub corner_radius: Value<f64>,
+    pub corner_radius: Value<f32>,
 }
 
 impl Rect {
@@ -136,16 +138,16 @@ impl Rect {
         let position = self.position.evaluate(frame);
         let size = self.size.evaluate(frame);
         let position = Point::new(
-            position.x - size.width * 0.5,
-            position.y - size.height * 0.5,
+            (position.x - size.width * 0.5) as f64,
+            (position.y - size.height * 0.5) as f64,
         );
         let radius = self.corner_radius.evaluate(frame);
         kurbo::RoundedRect::new(
             position.x,
             position.y,
-            position.x + size.width,
-            position.y + size.height,
-            radius,
+            position.x + size.width as f64,
+            position.y + size.height as f64,
+            radius as f64,
         )
     }
 }
@@ -155,13 +157,13 @@ impl Rect {
 pub struct Star {
     pub is_polygon: bool,
     pub direction: f64,
-    pub position: Value<Point>,
-    pub inner_radius: Value<f64>,
-    pub inner_roundness: Value<f64>,
-    pub outer_radius: Value<f64>,
-    pub outer_roundness: Value<f64>,
-    pub rotation: Value<f64>,
-    pub points: Value<f64>,
+    pub position: Value<PointF32>,
+    pub inner_radius: Value<f32>,
+    pub inner_roundness: Value<f32>,
+    pub outer_radius: Value<f32>,
+    pub outer_roundness: Value<f32>,
+    pub rotation: Value<f32>,
+    pub points: Value<f32>,
 }
 
 // TODO: Use this.
@@ -185,7 +187,7 @@ pub struct Spline {
     /// Collection of times.
     pub times: Vec<Time>,
     /// Collection of splines.
-    pub values: Vec<Vec<Point>>,
+    pub values: Vec<Vec<PointF32>>,
 }
 
 impl Spline {
@@ -209,21 +211,21 @@ impl Spline {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Repeater {
     /// Number of times elements should be repeated.
-    pub copies: Value<f64>,
+    pub copies: Value<f32>,
     /// Offset applied to each element.
-    pub offset: Value<f64>,
+    pub offset: Value<f32>,
     /// Anchor point.
-    pub anchor_point: Value<Point>,
+    pub anchor_point: Value<PointF32>,
     /// Translation.
-    pub position: Value<Point>,
+    pub position: Value<PointF32>,
     /// Rotation in degrees.
-    pub rotation: Value<f64>,
+    pub rotation: Value<f32>,
     /// Scale.
-    pub scale: Value<Vec2>,
+    pub scale: Value<VecF32>,
     /// Opacity of the first element.
-    pub start_opacity: Value<f64>,
+    pub start_opacity: Value<f32>,
     /// Opacity of the last element.
-    pub end_opacity: Value<f64>,
+    pub end_opacity: Value<f32>,
 }
 
 impl Repeater {
@@ -242,13 +244,13 @@ impl Repeater {
     /// Evaluates the repeater at the specified frame.
     pub fn evaluate(&self, frame: f64) -> fixed::Repeater {
         let copies = self.copies.evaluate(frame).round() as usize;
-        let offset = self.offset.evaluate(frame);
-        let anchor_point = self.anchor_point.evaluate(frame);
-        let position = self.position.evaluate(frame);
-        let rotation = self.rotation.evaluate(frame);
-        let scale = self.scale.evaluate(frame);
-        let start_opacity = self.start_opacity.evaluate(frame);
-        let end_opacity = self.end_opacity.evaluate(frame);
+        let offset = self.offset.evaluate(frame) as f64;
+        let anchor_point = self.anchor_point.evaluate(frame).to_point();
+        let position = self.position.evaluate(frame).to_point();
+        let rotation = self.rotation.evaluate(frame) as f64;
+        let scale = self.scale.evaluate(frame).to_vec2();
+        let start_opacity = self.start_opacity.evaluate(frame) as f64;
+        let end_opacity = self.end_opacity.evaluate(frame) as f64;
         fixed::Repeater {
             copies,
             offset,
@@ -275,7 +277,7 @@ impl Repeater {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Stroke {
     /// Width of the stroke.
-    pub width: Value<f64>,
+    pub width: Value<f32>,
     /// Join style.
     pub join: kurbo::Join,
     /// Limit for miter joins.
@@ -293,7 +295,7 @@ impl Stroke {
     /// Evaluates the stroke at the specified frame.
     pub fn evaluate(&self, frame: f64) -> kurbo::Stroke {
         let width = self.width.evaluate(frame);
-        let mut stroke = kurbo::Stroke::new(width)
+        let mut stroke = kurbo::Stroke::new(width as f64)
             .with_caps(self.cap)
             .with_join(self.join);
         if let Some(miter_limit) = self.miter_limit {
@@ -318,9 +320,9 @@ pub struct Gradient {
     /// True if the gradient is radial.
     pub is_radial: bool,
     /// Starting point.
-    pub start_point: Value<Point>,
+    pub start_point: Value<PointF32>,
     /// Ending point.
-    pub end_point: Value<Point>,
+    pub end_point: Value<PointF32>,
     /// Stop offsets and color values.
     pub stops: super::ColorStops,
 }
@@ -338,11 +340,11 @@ impl Gradient {
         let stops = self.stops.evaluate(frame).into_owned();
         if self.is_radial {
             let radius = (end.to_vec2() - start.to_vec2()).hypot();
-            let mut grad = peniko::Gradient::new_radial(start, radius as f32);
+            let mut grad = peniko::Gradient::new_radial(start.to_point(), radius as f32);
             grad.stops = stops;
             grad.into()
         } else {
-            let mut grad = peniko::Gradient::new_linear(start, end);
+            let mut grad = peniko::Gradient::new_linear(start.to_point(), end.to_point());
             grad.stops = stops;
             grad.into()
         }
@@ -352,7 +354,7 @@ impl Gradient {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ColorStops {
     pub frames: Vec<Time>,
-    pub values: Vec<Vec<f64>>,
+    pub values: Vec<Vec<f32>>,
     pub count: usize,
 }
 
@@ -372,10 +374,10 @@ impl ColorStops {
             let j = i * 5;
             let offset = v0.get(j)?.tween(v1.get(j)?, t, &easing);
             let t = if hold { 0.0 } else { t };
-            let r = v0.get(j + 1)?.tween(v1.get(j + 1)?, t, &easing);
-            let g = v0.get(j + 2)?.tween(v1.get(j + 2)?, t, &easing);
-            let b = v0.get(j + 3)?.tween(v1.get(j + 3)?, t, &easing);
-            let a = v0.get(j + 4)?.tween(v1.get(j + 4)?, t, &easing);
+            let r = v0.get(j + 1)?.tween(v1.get(j + 1)?, t, &easing) as f64;
+            let g = v0.get(j + 2)?.tween(v1.get(j + 2)?, t, &easing) as f64;
+            let b = v0.get(j + 3)?.tween(v1.get(j + 3)?, t, &easing) as f64;
+            let a = v0.get(j + 4)?.tween(v1.get(j + 4)?, t, &easing) as f64;
             let stop = peniko::ColorStop::from((offset as f32, peniko::Color::rgba(r, g, b, a)));
             stops.push(stop);
         }

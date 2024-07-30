@@ -3,6 +3,8 @@
 
 use vello::kurbo::{PathEl, Point};
 
+use crate::PointF32;
+
 /// Helper trait for converting cubic splines to paths.
 pub trait SplineToPath {
     fn get(&self, index: usize) -> Point;
@@ -44,24 +46,24 @@ pub trait SplineToPath {
 }
 
 /// Converts a static spline to a path.
-impl SplineToPath for &'_ [Point] {
+impl SplineToPath for &'_ [PointF32] {
     fn len(&self) -> usize {
         self.as_ref().len()
     }
 
     fn get(&self, index: usize) -> Point {
-        self[index]
+        self[index].to_point()
     }
 }
 
 /// Produces a path by lerping between two sets of points.
-impl SplineToPath for (&'_ [Point], &'_ [Point], f64) {
+impl SplineToPath for (&'_ [PointF32], &'_ [PointF32], f64) {
     fn len(&self) -> usize {
         self.0.len().min(self.1.len())
     }
 
     fn get(&self, index: usize) -> Point {
         // TODO: This definitely shouldn't be a lerp
-        self.0[index].lerp(self.1[index], self.2)
+        self.0[index].to_point().lerp(self.1[index].to_point(), self.2)
     }
 }

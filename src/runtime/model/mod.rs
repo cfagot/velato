@@ -3,7 +3,7 @@
 
 use std::ops::Range;
 use serde::{Deserialize, Serialize};
-use kurbo::{self, Affine, PathEl, Point, Shape as _, Size, Vec2};
+use kurbo::{self, Affine, PathEl, Point, Shape as _};
 use peniko::{self, BlendMode, Color};
 
 mod spline;
@@ -15,6 +15,8 @@ pub mod fixed;
 pub use value::{Animated, Easing, EasingHandle, Time, Tween, Value, ValueRef};
 
 pub(crate) use spline::SplineToPath;
+
+use crate::PathEl32;
 
 macro_rules! simple_value {
     ($name:ident) => {
@@ -77,7 +79,7 @@ impl Default for Transform {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Geometry {
-    Fixed(Vec<PathEl>),
+    Fixed(Vec<PathEl32>),
     Rect(animated::Rect),
     Ellipse(animated::Ellipse),
     Spline(animated::Spline),
@@ -87,7 +89,7 @@ impl Geometry {
     pub fn evaluate(&self, frame: f64, path: &mut Vec<PathEl>) {
         match self {
             Self::Fixed(value) => {
-                path.extend_from_slice(value);
+                path.extend(value.iter().map(|el| el.to_path_el()));
             }
             Self::Rect(value) => {
                 path.extend(value.evaluate(frame).path_elements(0.1));
@@ -109,7 +111,7 @@ pub struct Draw {
     /// Brush for the draw operation.
     pub brush: Brush,
     /// Opacity of the draw operation.
-    pub opacity: Value<f64>,
+    pub opacity: Value<f32>,
 }
 
 /// Elements of a shape layer.
@@ -129,7 +131,7 @@ pub enum Shape {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GroupTransform {
     pub transform: Transform,
-    pub opacity: Value<f64>,
+    pub opacity: Value<f32>,
 }
 
 /// Layer in an animation.
@@ -142,7 +144,7 @@ pub struct Layer {
     /// Transform for the entire layer.
     pub transform: Transform,
     /// Opacity for the entire layer.
-    pub opacity: Value<f64>,
+    pub opacity: Value<f32>,
     /// Width of the layer.
     pub width: f64,
     /// Height of the layer.
@@ -185,7 +187,7 @@ pub struct Mask {
     /// Geometry that defines the shape of the mask.
     pub geometry: Geometry,
     /// Opacity of the mask.
-    pub opacity: Value<f64>,
+    pub opacity: Value<f32>,
 }
 
 /// Content of a layer.
@@ -197,7 +199,7 @@ pub enum Content {
     /// Asset instance with the specified name and time remapping.
     Instance {
         name: String,
-        time_remap: Option<Value<f64>>,
+        time_remap: Option<Value<f32>>,
     },
     /// Collection of shapes.
     Shape(Vec<Shape>),
